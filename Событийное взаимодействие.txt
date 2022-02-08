@@ -1,0 +1,37 @@
+title Событийное взаимодействие
+
+participant Client
+participant Person-service
+participant Billing-service
+participant Order-service
+participant Broker-service
+participant Notification-service
+
+
+Client->Person-service:Создание УЗ\n[POST /person/register]
+Person-service->Billing-service:Создание аккаунта в Billing\n[POST /account/createAccount]\nbody: пользовательские данные
+Person-service<-Billing-service:HTTP 200 OK\nbody: пользовательские данные
+Client<-Person-service:HTTP 200 OK
+Client->Billing-service:Пополнение счета\n[PUT account/operation]\nbody: login, operation, sum
+Billing-service->Broker-service:Отправка уведомления
+Broker-service<-Notification-service:Чтение сообщений
+Notification-service->Notification-service:Сохранение сообщений
+Client<-Billing-service:HTTP 200 OK
+Client->Order-service:Создание заказа, на который хватает денежных средств\n[POST /order/createOrder]\nbody: данные заказа
+Billing-service<-Order-service:Списание денежных средств\n[PUT /account/operation]\nbody: login, sum, operation
+Billing-service->Broker-service:Отправка уведомления
+Billing-service->Order-service:HTTP 200 OK\n\nbody: isPaid = true
+Client<-Order-service:HTTP 200 OK
+Client->Billing-service:Проверка баланса\n[GET /account/?login= ]
+Client<-Billing-service:HTTP 200 OK\nbody: summary
+Client->Notification-service:Просмотр уведомлений\n[GET /notice/notices/?login= ]
+Client<-Notification-service:HTTP 200\nbody: messages
+Client->Order-service:Создание заказа, на который не хватает денежных средств\n[POST /order/createOrder]\nbody: данные заказа
+Billing-service<-Order-service:Списание денежных средств\n[PUT /account/operation]\nbody: login, sum, operation
+Billing-service->Broker-service:Отправка уведомления
+Broker-service<-Notification-service:Чтение сообщений
+Notification-service->Notification-service:Сохранение сообщений
+Billing-service->Order-service:HTTP 200 OK\n\nbody: isPaid = false
+Client<-Order-service:HTTP 200 OK\n\nbody: isPaid = false
+Client->Notification-service:Просмотр уведомлений\n[GET /notice/notices/?login= ]
+Client<-Notification-service:HTTP 200\nbody: messages

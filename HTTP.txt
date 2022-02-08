@@ -1,0 +1,61 @@
+title Streaming HTTP HomeWork
+
+participant Client
+participant Person-service
+participant Billing-service
+participant Order-service
+participant Notification-service
+
+
+Client->Person-service:Создание УЗ\n[POST /person/register]
+activate Person-service
+Person-service->Billing-service:Создание аккаунта в Billing\n[POST /account/createAccount]\nbody: пользовательские данные
+activate Billing-service
+Person-service<-Billing-service:HTTP 200 OK\nbody: пользовательские данные
+deactivate Billing-service
+Client<-Person-service:HTTP 200 OK
+deactivate Person-service
+Client->Billing-service:Пополнение счета\n[PUT account/operation]\nbody: login, operation, sum
+activate Billing-service
+Billing-service->Notification-service:Отправка уведомления\n[POST /notification/create]
+activate Notification-service
+Billing-service<-Notification-service:HTTP 200 OK\n
+deactivate Notification-service
+Client<-Billing-service:HTTP 200 OK
+deactivate Billing-service
+Client->Order-service:Создание заказа, на который хватает денежных средств\n[POST /order/createOrder]\nbody: данные заказа
+activate Order-service
+Billing-service<-Order-service:Списание денежных средств\n[PUT /account/operation]\nbody: login, sum, operation
+activate Billing-service
+Billing-service->Notification-service:Отправка уведомления\n[POST /notification/create]
+activate Notification-service
+Billing-service<-Notification-service:HTTP 200 OK\n
+deactivate Notification-service
+Billing-service->Order-service:HTTP 200 OK\n\nbody: isPaid = true
+deactivate Billing-service
+Client<-Order-service:HTTP 200 OK
+deactivate Order-service
+Client->Billing-service:Проверка баланса\n[GET /account/?login= ]
+activate Billing-service
+Client<-Billing-service:HTTP 200 OK\nbody: summary
+deactivate Billing-service
+Client->Notification-service:Просмотр уведомлений\n[GET /notice/notices/?login= ]
+activate Notification-service
+Client<-Notification-service:HTTP 200\nbody: messages
+deactivate Notification-service
+Client->Order-service:Создание заказа, на который не хватает денежных средств\n[POST /order/createOrder]\nbody: данные заказа
+activate Order-service
+Billing-service<-Order-service:Списание денежных средств\n[PUT /account/operation]\nbody: login, sum, operation
+activate Billing-service
+Billing-service->Notification-service:Отправка уведомления\n[POST /notification/create]
+activate Notification-service
+Billing-service<-Notification-service:HTTP 200 OK\n
+deactivate Notification-service
+Billing-service->Order-service:HTTP 200 OK\n\nbody: isPaid = false
+deactivate Billing-service
+Client<-Order-service:HTTP 200 OK\n\nbody: isPaid = false
+deactivate Order-service
+Client->Notification-service:Просмотр уведомлений\n[GET /notice/notices/?login= ]
+activate Notification-service
+Client<-Notification-service:HTTP 200\nbody: messages
+deactivate Notification-service

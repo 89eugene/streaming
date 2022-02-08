@@ -1,0 +1,85 @@
+title Событийное взаимодействие с использованием брокера
+
+participant Client
+
+participant Person-service
+
+participant Brocker-service
+
+participant Billing-service
+participant Order-service
+participant Notification-service
+
+
+Client->Person-service:Создание УЗ\n[POST /person/register]
+activate Person-service
+Person-service->Brocker-service:Событие для создания аккаунта
+activate Brocker-service
+Client<-Person-service:HTTP 200 OK
+deactivate Person-service
+Brocker-service<-Billing-service:Получение событий
+activate Billing-service
+Billing-service->Billing-service:Создание аккаунта
+
+Brocker-service<-Billing-service:Событие для нотификации о создании аккаунта
+Brocker-service<-Notification-service:Получить сообщения
+deactivate Billing-service
+activate Notification-service
+Notification-service->Notification-service:Сохранение сообщений
+deactivate Notification-service
+Client->Billing-service:Пополнение счета\n[PUT account/operation]\nbody: login, operation, sum
+activate Billing-service
+
+
+Client<-Billing-service:HTTP 200 OK
+deactivate Billing-service
+Client->Order-service:Создание заказа, на который хватает денежных средств\n[POST /order/createOrder]\nbody: данные заказа
+activate Order-service
+Order-service->Order-service:Сохранение заказа
+Brocker-service<-Order-service:Создание события по списанию денежных средств\n
+Brocker-service<-Billing-service:Получение событий
+activate Billing-service
+Billing-service->Billing-service:Списание денежных средств
+Brocker-service<-Billing-service:Создание события после списания денежных средств
+deactivate Billing-service
+Brocker-service<-Billing-service:Создание события для нотификации о списании денежных средств
+Brocker-service<-Notification-service:Получение сообщений
+activate Notification-service
+
+Notification-service->Notification-service:Сохранение сообщений
+deactivate Notification-service
+Brocker-service<-Order-service:Получение событий
+Order-service->Order-service:Сохранение информации
+Client<-Order-service:HTTP 200 OK
+deactivate Order-service
+Client->Billing-service:Проверка баланса\n[GET /account/?login= ]
+activate Billing-service
+Client<-Billing-service:HTTP 200 OK\nbody: summary
+deactivate Billing-service
+Client->Notification-service:Просмотр уведомлений\n[GET /notice/notices/?login= ]
+activate Notification-service
+Client<-Notification-service:HTTP 200\nbody: messages
+deactivate Notification-service
+Client->Order-service:Создание заказа, на который не хватает денежных средств\n[POST /order/createOrder]\nbody: данные заказа
+activate Order-service
+Order-service->Order-service:Сохранение заказа
+Brocker-service<-Order-service:Создание события для списания денежных средств
+Brocker-service<-Billing-service:Получение событий
+activate Billing-service
+Billing-service->Billing-service:Обработка события
+Brocker-service<-Billing-service:Создание события для нотификации о нехватке денежных средств
+Brocker-service<-Billing-service:Создание события о нехватке денежных средств
+deactivate Billing-service
+Brocker-service<-Notification-service:Получение сообщений
+activate Notification-service
+Notification-service->Notification-service:Сохранение сообщений
+deactivate Notification-service
+Brocker-service<-Order-service:Получение событий
+Order-service->Order-service:Сохранение информации
+Client<-Order-service:HTTP 200 OK\n\nbody: isPaid = false
+deactivate Order-service
+Client->Notification-service:Просмотр уведомлений\n[GET /notice/notices/?login= ]
+activate Notification-service
+
+Client<-Notification-service:HTTP 200\nbody: messages
+deactivate Notification-service
